@@ -24,7 +24,7 @@
   //  Setup Socket.IO
   const io = new Server(server, {
     cors: {
-      origin: "http://localhost:3000",
+      origin: "*",
       credentials: true
     }
   });
@@ -54,7 +54,7 @@
   connectDB();
 
   // Middleware
-  app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+  app.use(cors({ origin: '*', credentials: true }));
   app.use(bodyParser.json());
   app.use(cookieParser());
 
