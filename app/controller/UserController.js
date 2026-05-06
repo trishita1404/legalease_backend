@@ -59,7 +59,7 @@ class UserController {
         }
     }
 
-    // =========================
+// =========================
 // REGISTRATION
 // =========================
 async Registration(req, res) {
