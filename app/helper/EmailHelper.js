@@ -1,18 +1,19 @@
-const nodemailer = require("nodemailer");
+const nodemailer = require('nodemailer');
 
 const SendEmail = async (EmailTo, EmailText, EmailSubject) => {
-
-    const transporter = nodemailer.createTransport({
-        service: "gmail",
-
+    let transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        secure: false, // true for 465, false for other ports
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
+        tls: { rejectUnauthorized: false },
     });
 
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
+    let mailOptions = {
+        from: `LegalEase+ <${process.env.EMAIL_FROM}>`,
         to: EmailTo,
         subject: EmailSubject,
         text: EmailText,
