@@ -3,7 +3,9 @@ const nodemailer = require("nodemailer");
 const SendEmail = async (EmailTo, EmailText, EmailSubject) => {
 
     let transporter = nodemailer.createTransport({
-        service: "gmail",
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
 
         auth: {
             user: process.env.EMAIL_USER,
@@ -14,7 +16,7 @@ const SendEmail = async (EmailTo, EmailText, EmailSubject) => {
     });
 
     let mailOptions = {
-        from: `LegalEase+ <${process.env.EMAIL_FROM}>`,
+        from: process.env.EMAIL_USER,
         to: EmailTo,
         subject: EmailSubject,
         text: EmailText,
