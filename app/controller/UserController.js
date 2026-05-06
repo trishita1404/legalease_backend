@@ -60,58 +60,132 @@ class UserController {
     }
 
     // =========================
-    // REGISTRATION
-    // =========================
-    async Registration(req, res) {
-        try {
-            const { fullName, email, password, role, phone, identification } = req.body;
-            const cleanEmail = email.toLowerCase().trim();
+// REGISTRATION
+// =========================
+async Registration(req, res) {
+    try {
+        const { fullName, email, password, role, phone, identification } = req.body;
 
-            let user = await UserModel.findOne({ email: cleanEmail });
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const cleanEmail = email.toLowerCase().trim();
 
-            if (user) {
-                await UserModel.updateOne({ email: cleanEmail }, { $set: { otp } });
-                await SendEmail(cleanEmail, `Your code is ${otp}`, "Verification Code");
-                return res.status(200).json({ status: "success", message: "OTP resent" });
+        let user = await UserModel.findOne({ email: cleanEmail });
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // =========================
+        // EXISTING USER → RESEND OTP
+        // =========================
+        if (user) {
+
+            await UserModel.updateOne(
+                { email: cleanEmail },
+                { $set: { otp } }
+            );
+
+            try {
+
+                await SendEmail(
+                    cleanEmail,
+                    `Your code is ${otp}`,
+                    "Verification Code"
+                );
+
+                console.log("RESEND OTP EMAIL SUCCESS");
+
+            } catch (emailError) {
+
+                console.log("RESEND OTP EMAIL ERROR:");
+                console.log(emailError);
+
+                return res.status(500).json({
+                    status: "fail",
+                    message: emailError.message
+                });
             }
 
-            const hashedPassword = await bcrypt.hash(password, 10);
+            return res.status(200).json({
+                status: "success",
+                message: "OTP resent"
+            });
+        }
 
-            const newUser = await UserModel.create({
-    fullName,
-    email: cleanEmail,
-    password: hashedPassword,
-    role,
-    otp,
-    phoneNumber: phone,
-    barId: identification,
-    approvalStatus: role === "lawyer" ? "pending" : "approved"
-});
+        // =========================
+        // CREATE NEW USER
+        // =========================
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-// 🔔 NOTIFY ADMIN (only for lawyer)
-if (role === "lawyer") {
-    const admins = await UserModel.find({ role: "admin" });
+        const newUser = await UserModel.create({
+            fullName,
+            email: cleanEmail,
+            password: hashedPassword,
+            role,
+            otp,
+            phoneNumber: phone,
+            barId: identification,
+            approvalStatus: role === "lawyer" ? "pending" : "approved"
+        });
 
-    for (let admin of admins) {
-        await createNotification(
-            admin._id,
-            "New Lawyer Registration",
-            `${fullName} has registered and is waiting for approval.`,
-            "warning"
-        );
+        // =========================
+        // NOTIFY ADMIN
+        // =========================
+        if (role === "lawyer") {
+
+            const admins = await UserModel.find({ role: "admin" });
+
+            for (let admin of admins) {
+
+                await createNotification(
+                    admin._id,
+                    "New Lawyer Registration",
+                    `${fullName} has registered and is waiting for approval.`,
+                    "warning"
+                );
+            }
+        }
+
+        // =========================
+        // SEND OTP EMAIL
+        // =========================
+        try {
+
+            await SendEmail(
+                cleanEmail,
+                `Your verification code is ${otp}`,
+                "Email Verification"
+            );
+
+            console.log("EMAIL SENT SUCCESSFULLY");
+
+        } catch (emailError) {
+
+            console.log("EMAIL ERROR:");
+            console.log(emailError);
+
+            return res.status(500).json({
+                status: "fail",
+                message: emailError.message
+            });
+        }
+
+        // =========================
+        // SUCCESS RESPONSE
+        // =========================
+        return res.status(201).json({
+            status: "success",
+            message: "OTP sent"
+        });
+
+    } catch (err) {
+
+        console.log("REGISTRATION ERROR:");
+        console.log(err);
+
+        return res.status(500).json({
+            status: "fail",
+            message: err.message
+        });
     }
 }
-
-            await SendEmail(cleanEmail, `Your verification code is ${otp}`, "Email Verification");
-
-            return res.status(201).json({ status: "success", message: "OTP sent" });
-
-        } catch (err) {
-            return res.status(500).json({ status: "fail", message: err.message });
-        }
-    }
-
     // =========================
 // VERIFY OTP (FINAL FIXED)
 // =========================
