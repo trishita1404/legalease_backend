@@ -1,0 +1,121 @@
+const EventModel = require("../model/EventModel");
+
+class EventController {
+
+  // ✅ GET ALL EVENTS (ALL USERS CAN SEE)
+  async GetEvents(req, res) {
+    try {
+      const events = await EventModel.find().sort({ date: 1 });
+
+      return res.status(200).json({
+        status: "success",
+        data: events,
+      });
+
+    } catch (error) {
+      return res.status(500).json({
+        status: "fail",
+        message: error.message,
+      });
+    }
+  }
+
+  // ✅ CREATE EVENT (ADMIN & LAWYER ONLY)
+  async CreateEvent(req, res) {
+    try {
+      const role = req.user.role;
+
+      if (!["admin", "lawyer"].includes(role)) {
+        return res.status(403).json({
+          status: "fail",
+          message: "Access denied",
+        });
+      }
+
+      const { title, description, date } = req.body;
+
+      const event = await EventModel.create({
+        title,
+        description,
+        date,
+        createdBy: req.user.user_id,
+        role,
+      });
+
+      return res.status(201).json({
+        status: "success",
+        data: event,
+      });
+
+    } catch (error) {
+      return res.status(500).json({
+        status: "fail",
+        message: error.message,
+      });
+    }
+  }
+
+  // ✅ UPDATE EVENT (ADMIN & LAWYER ONLY)
+  async UpdateEvent(req, res) {
+    try {
+      const role = req.user.role;
+
+      if (!["admin", "lawyer"].includes(role)) {
+        return res.status(403).json({
+          status: "fail",
+          message: "Access denied",
+        });
+      }
+
+      const { eventId, title, description, date } = req.body;
+
+      const updated = await EventModel.findByIdAndUpdate(
+        eventId,
+        { title, description, date },
+        { new: true }
+      );
+
+      return res.status(200).json({
+        status: "success",
+        data: updated,
+      });
+
+    } catch (error) {
+      return res.status(500).json({
+        status: "fail",
+        message: error.message,
+      });
+    }
+  }
+
+  // ✅ DELETE EVENT
+  async DeleteEvent(req, res) {
+    try {
+      const role = req.user.role;
+
+      if (!["admin", "lawyer"].includes(role)) {
+        return res.status(403).json({
+          status: "fail",
+          message: "Access denied",
+        });
+      }
+
+      const { eventId } = req.body;
+
+      await EventModel.findByIdAndDelete(eventId);
+
+      return res.status(200).json({
+        status: "success",
+        message: "Event deleted",
+      });
+
+    } catch (error) {
+      return res.status(500).json({
+        status: "fail",
+        message: error.message,
+      });
+    }
+  }
+}
+
+module.exports = new EventController();
