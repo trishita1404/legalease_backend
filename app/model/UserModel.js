@@ -21,10 +21,10 @@ const UserSchema = new mongoose.Schema({
     bio: { type: String },
 
     // --- Auth ---
-    isVerified: { type: Boolean, default: false },
-    otp: { type: String },
+    // isVerified: { type: Boolean, default: false },
+    // otp: { type: String },
 
-    // 🔥 EXISTING (KEEP)
+    //  EXISTING (KEEP)
     isBlocked: { type: Boolean, default: false },
 
     // ✅ NEW FIELD (IMPORTANT)

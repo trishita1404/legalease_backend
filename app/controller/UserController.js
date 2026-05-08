@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 const UserModel = require("../model/UserModel");
 const TokenHelper = require("../helper/TokenHelper");
-const SendEmail = require("../helper/EmailHelper");
+// const SendEmail = require("../helper/EmailHelper");
 const { createNotification } = require("../helper/NotificationHelper");
 
 // Cookie helper
@@ -59,78 +59,61 @@ class UserController {
         }
     }
 
+ 
 // =========================
 // REGISTRATION
 // =========================
 async Registration(req, res) {
     try {
+
         const { fullName, email, password, role, phone, identification } = req.body;
 
         const cleanEmail = email.toLowerCase().trim();
 
-        let user = await UserModel.findOne({ email: cleanEmail });
-
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
         // =========================
-        // EXISTING USER → RESEND OTP
+        // CHECK EXISTING USER
         // =========================
-        if (user) {
+        const existingUser = await UserModel.findOne({
+            email: cleanEmail
+        });
 
-            await UserModel.updateOne(
-                { email: cleanEmail },
-                { $set: { otp } }
-            );
-
-            try {
-
-                await SendEmail(
-                    cleanEmail,
-                    `Your code is ${otp}`,
-                    "Verification Code"
-                );
-
-                console.log("RESEND OTP EMAIL SUCCESS");
-
-            } catch (emailError) {
-
-                console.log("RESEND OTP EMAIL ERROR:");
-                console.log(emailError);
-
-                return res.status(500).json({
-                    status: "fail",
-                    message: emailError.message
-                });
-            }
-
-            return res.status(200).json({
-                status: "success",
-                message: "OTP resent"
+        if (existingUser) {
+            return res.status(400).json({
+                status: "fail",
+                message: "User already exists"
             });
         }
 
         // =========================
-        // CREATE NEW USER
+        // HASH PASSWORD
         // =========================
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = await UserModel.create({
+        // =========================
+        // CREATE USER
+        // =========================
+        await UserModel.create({
             fullName,
             email: cleanEmail,
             password: hashedPassword,
             role,
-            otp,
             phoneNumber: phone,
             barId: identification,
-            approvalStatus: role === "lawyer" ? "pending" : "approved"
+
+            // IMPORTANT: KEEP THIS
+            approvalStatus: role === "lawyer"
+                ? "pending"
+                : "approved"
         });
 
         // =========================
-        // NOTIFY ADMIN
+        // NOTIFY ADMIN FOR LAWYERS
         // =========================
         if (role === "lawyer") {
 
-            const admins = await UserModel.find({ role: "admin" });
+            const admins = await UserModel.find({
+                role: "admin"
+            });
 
             for (let admin of admins) {
 
@@ -144,35 +127,11 @@ async Registration(req, res) {
         }
 
         // =========================
-        // SEND OTP EMAIL
-        // =========================
-        try {
-
-            await SendEmail(
-                cleanEmail,
-                `Your verification code is ${otp}`,
-                "Email Verification"
-            );
-
-            console.log("EMAIL SENT SUCCESSFULLY");
-
-        } catch (emailError) {
-
-            console.log("EMAIL ERROR:");
-            console.log(emailError);
-
-            return res.status(500).json({
-                status: "fail",
-                message: emailError.message
-            });
-        }
-
-        // =========================
         // SUCCESS RESPONSE
         // =========================
         return res.status(201).json({
             status: "success",
-            message: "OTP sent"
+            message: "Registration successful"
         });
 
     } catch (err) {
@@ -186,90 +145,90 @@ async Registration(req, res) {
         });
     }
 }
-    // =========================
+// =========================
 // VERIFY OTP (FINAL FIXED)
 // =========================
-async VerifyOTP(req, res) {
-    try {
-        const { email, otp } = req.body;
-        const cleanEmail = email.toLowerCase().trim();
+// async VerifyOTP(req, res) {
+//     try {
+//         const { email, otp } = req.body;
+//         const cleanEmail = email.toLowerCase().trim();
 
-        const user = await UserModel.findOne({ email: cleanEmail });
+//         const user = await UserModel.findOne({ email: cleanEmail });
 
-        // ❌ USER NOT FOUND
-        if (!user) {
-            return res.status(404).json({
-                status: "fail",
-                message: "User not found"
-            });
-        }
+//         // ❌ USER NOT FOUND
+//         if (!user) {
+//             return res.status(404).json({
+//                 status: "fail",
+//                 message: "User not found"
+//             });
+//         }
 
-        // ❌ OTP MISMATCH (robust check)
-        const dbOtp = String(user.otp).trim();
-        const enteredOtp = String(otp).trim();
+//         // ❌ OTP MISMATCH (robust check)
+//         const dbOtp = String(user.otp).trim();
+//         const enteredOtp = String(otp).trim();
 
-        if (dbOtp !== enteredOtp) {
-            console.log("DB OTP:", dbOtp);
-            console.log("Entered OTP:", enteredOtp);
+//         if (dbOtp !== enteredOtp) {
+//             console.log("DB OTP:", dbOtp);
+//             console.log("Entered OTP:", enteredOtp);
 
-            return res.status(400).json({
-                status: "fail",
-                message: "Invalid OTP"
-            });
-        }
+//             return res.status(400).json({
+//                 status: "fail",
+//                 message: "Invalid OTP"
+//             });
+//         }
 
-        // 🔥 CHECK LAWYER APPROVAL FIRST
-        if (user.role === "lawyer" && user.approvalStatus !== "approved") {
-            return res.status(200).json({
-                status: "pending",
-                message: "Your account is under admin approval. Please wait."
-            });
-        }
+//         // 🔥 CHECK LAWYER APPROVAL FIRST
+//         if (user.role === "lawyer" && user.approvalStatus !== "approved") {
+//             return res.status(200).json({
+//                 status: "pending",
+//                 message: "Your account is under admin approval. Please wait."
+//             });
+//         }
 
-        // ✅ NOW VERIFY USER (ONLY AFTER SUCCESS FLOW)
-        user.otp = "0";
-        user.isVerified = true;
-        await user.save();
+//         // ✅ NOW VERIFY USER (ONLY AFTER SUCCESS FLOW)
+//         user.otp = "0";
+//         user.isVerified = true;
+//         await user.save();
 
-        // ✅ GENERATE TOKENS
-        const accessToken = TokenHelper.EncodeAccessToken(
-            user.email,
-            user._id,
-            user.role
-        );
+//         // ✅ GENERATE TOKENS
+//         const accessToken = TokenHelper.EncodeAccessToken(
+//             user.email,
+//             user._id,
+//             user.role
+//         );
 
-        const refreshToken = TokenHelper.EncodeRefreshToken(
-            user.email,
-            user._id,
-            user.role
-        );
+//         const refreshToken = TokenHelper.EncodeRefreshToken(
+//             user.email,
+//             user._id,
+//             user.role
+//         );
 
-        res.cookie("refreshToken", refreshToken, getCookieOptions());
+//         res.cookie("refreshToken", refreshToken, getCookieOptions());
 
-        // ✅ FINAL RESPONSE
-        return res.status(200).json({
-            status: "success",
-            accessToken,
-            data: {
-                id: user._id,
-                email: user.email,
-                role: user.role,
-                fullName: user.fullName,
-                avatar: user.avatar || "",
-                phoneNumber: user.phoneNumber || "",
-                barId: user.barId || "",
-                specialization: user.specialization || "",
-                bio: user.bio || "",
-            }
-        });
+//         // ✅ FINAL RESPONSE
+//         return res.status(200).json({
+//             status: "success",
+//             accessToken,
+//             data: {
+//                 id: user._id,
+//                 email: user.email,
+//                 role: user.role,
+//                 fullName: user.fullName,
+//                 avatar: user.avatar || "",
+//                 phoneNumber: user.phoneNumber || "",
+//                 barId: user.barId || "",
+//                 specialization: user.specialization || "",
+//                 bio: user.bio || "",
+//             }
+//         });
 
-    } catch (err) {
-        return res.status(500).json({
-            status: "fail",
-            message: err.message
-        });
-    }
-}
+//     } catch (err) {
+//         return res.status(500).json({
+//             status: "fail",
+//             message: err.message
+//         });
+//     }
+// }
 
     // =========================
     // LOGIN (FIXED)

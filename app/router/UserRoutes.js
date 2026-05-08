@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require('express'); 
 const router = express.Router();
 
 const UserController = require('../controller/UserController');
@@ -15,7 +15,7 @@ const AnnouncementController = require("../controller/AnnouncementController");
 
 // PUBLIC
 router.post("/registration", UserController.Registration);
-router.post("/verify-otp", UserController.VerifyOTP);
+// router.post("/verify-otp", UserController.VerifyOTP);
 router.post("/login", UserController.Login);
 router.post("/refresh-token", UserController.RefreshToken);
 
