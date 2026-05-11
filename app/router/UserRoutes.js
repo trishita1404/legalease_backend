@@ -125,6 +125,11 @@ router.get("/GetChatList", AuthMiddleware, ChatController.GetChatList);
 
 // CALENDAR EVENTS
 router.get("/events", AuthMiddleware, EventController.GetEvents);
+router.get(
+  "/calendar-cases",
+  AuthMiddleware,
+  EventController.GetCalendarCases
+);
 router.post("/events/create", AuthMiddleware, EventController.CreateEvent);
 router.post("/events/update", AuthMiddleware, EventController.UpdateEvent);
 router.post("/events/delete", AuthMiddleware, EventController.DeleteEvent);

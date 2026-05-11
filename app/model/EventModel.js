@@ -2,23 +2,58 @@ const mongoose = require("mongoose");
 
 const EventSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true },
-    description: String,
 
-    date: { type: Date, required: true },
+    // Linked Case
+    caseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "cases",
+      required: true,
+    },
 
+    caseCode: {
+      type: String,
+      required: true,
+    },
+
+    // Client
+    clientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
+    },
+
+    // Lawyer
+    lawyerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
+    },
+
+    // Schedule
+    scheduleDateTime: {
+      type: Date,
+      required: true,
+    },
+
+    // Priority
+    priority: {
+      type: String,
+      enum: ["High", "Medium", "Normal"],
+      default: "Normal",
+    },
+
+    // Creator
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",
       required: true,
     },
 
-    role: {
-      type: String,
-      enum: ["admin", "lawyer"],
-    },
   },
-  { timestamps: true, versionKey: false }
+  {
+    timestamps: true,
+    versionKey: false,
+  }
 );
 
 module.exports = mongoose.model("events", EventSchema);
