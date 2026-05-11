@@ -1,8 +1,11 @@
 const EventModel = require("../model/EventModel");
+const CaseModel = require("../model/CaseModel");
 
 class EventController {
 
-  // ✅ GET EVENTS
+  // ===============================
+  // GET EVENTS
+  // ===============================
   async GetEvents(req, res) {
 
     try {
@@ -12,18 +15,42 @@ class EventController {
 
       let query = {};
 
-      // CLIENT → own schedules only
+      // CLIENT → ONLY OWN CASE EVENTS
       if (role === "client") {
-        query.clientId = userId;
+
+        const myCases = await CaseModel.find({
+          client: userId,
+        }).select("_id");
+
+        const caseIds = myCases.map(
+          (item) => item._id
+        );
+
+        query.caseId = {
+          $in: caseIds,
+        };
       }
 
-      // LAWYER → assigned schedules only
+      // LAWYER → ONLY OWN CASE EVENTS
       if (role === "lawyer") {
-        query.lawyerId = userId;
+
+        const lawyerCases = await CaseModel.find({
+          lawyer: userId,
+        }).select("_id");
+
+        const caseIds = lawyerCases.map(
+          (item) => item._id
+        );
+
+        query.caseId = {
+          $in: caseIds,
+        };
       }
 
       const events = await EventModel.find(query)
-        .sort({ scheduleDateTime: 1 });
+        .sort({
+          scheduleDateTime: 1,
+        });
 
       return res.status(200).json({
         status: "success",
@@ -32,7 +59,7 @@ class EventController {
 
     } catch (error) {
 
-      console.log(error);
+      console.log("GET EVENTS ERROR:", error);
 
       return res.status(500).json({
         status: "fail",
@@ -41,14 +68,19 @@ class EventController {
     }
   }
 
-  // ✅ CREATE EVENT
+  // ===============================
+  // CREATE EVENT
+  // ===============================
   async CreateEvent(req, res) {
 
     try {
 
       const role = req.user.role;
 
-      if (!["admin", "lawyer"].includes(role)) {
+      // ONLY ADMIN & LAWYER
+      if (
+        !["admin", "lawyer"].includes(role)
+      ) {
 
         return res.status(403).json({
           status: "fail",
@@ -59,22 +91,16 @@ class EventController {
       const {
         caseId,
         caseCode,
-        clientId,
-        lawyerId,
         scheduleDateTime,
         priority,
       } = req.body;
 
-      // ✅ DEBUG LOGS
       console.log("REQ BODY:", req.body);
-      console.log("REQ USER:", req.user);
 
-      // ✅ VALIDATION
+      // VALIDATION
       if (
         !caseId ||
         !caseCode ||
-        !clientId ||
-        !lawyerId ||
         !scheduleDateTime
       ) {
 
@@ -87,9 +113,8 @@ class EventController {
       const event = await EventModel.create({
 
         caseId,
+
         caseCode,
-        clientId,
-        lawyerId,
 
         scheduleDateTime,
 
@@ -105,7 +130,10 @@ class EventController {
 
     } catch (error) {
 
-      console.log("CREATE EVENT ERROR:", error);
+      console.log(
+        "CREATE EVENT ERROR:",
+        error
+      );
 
       return res.status(500).json({
         status: "fail",
@@ -114,14 +142,18 @@ class EventController {
     }
   }
 
-  // ✅ UPDATE EVENT
+  // ===============================
+  // UPDATE EVENT
+  // ===============================
   async UpdateEvent(req, res) {
 
     try {
 
       const role = req.user.role;
 
-      if (!["admin", "lawyer"].includes(role)) {
+      if (
+        !["admin", "lawyer"].includes(role)
+      ) {
 
         return res.status(403).json({
           status: "fail",
@@ -135,17 +167,20 @@ class EventController {
         priority,
       } = req.body;
 
-      const updated = await EventModel.findByIdAndUpdate(
+      const updated =
+        await EventModel.findByIdAndUpdate(
 
-        eventId,
+          eventId,
 
-        {
-          scheduleDateTime,
-          priority,
-        },
+          {
+            scheduleDateTime,
+            priority,
+          },
 
-        { new: true }
-      );
+          {
+            new: true,
+          }
+        );
 
       return res.status(200).json({
         status: "success",
@@ -154,7 +189,10 @@ class EventController {
 
     } catch (error) {
 
-      console.log(error);
+      console.log(
+        "UPDATE EVENT ERROR:",
+        error
+      );
 
       return res.status(500).json({
         status: "fail",
@@ -163,14 +201,18 @@ class EventController {
     }
   }
 
-  // ✅ DELETE EVENT
+  // ===============================
+  // DELETE EVENT
+  // ===============================
   async DeleteEvent(req, res) {
 
     try {
 
       const role = req.user.role;
 
-      if (!["admin", "lawyer"].includes(role)) {
+      if (
+        !["admin", "lawyer"].includes(role)
+      ) {
 
         return res.status(403).json({
           status: "fail",
@@ -180,7 +222,9 @@ class EventController {
 
       const { eventId } = req.body;
 
-      await EventModel.findByIdAndDelete(eventId);
+      await EventModel.findByIdAndDelete(
+        eventId
+      );
 
       return res.status(200).json({
         status: "success",
@@ -189,7 +233,10 @@ class EventController {
 
     } catch (error) {
 
-      console.log(error);
+      console.log(
+        "DELETE EVENT ERROR:",
+        error
+      );
 
       return res.status(500).json({
         status: "fail",
@@ -198,31 +245,35 @@ class EventController {
     }
   }
 
-  // ✅ GET CASES FOR DROPDOWN
+  // ===============================
+  // GET CASES FOR DROPDOWN
+  // ===============================
   async GetCalendarCases(req, res) {
 
     try {
-
-      const CaseModel = require("../model/CaseModel");
 
       const role = req.user.role;
       const userId = req.user._id;
 
       let query = {};
 
-      // CLIENT → own cases
+      // CLIENT → OWN CASES
       if (role === "client") {
         query.client = userId;
       }
 
-      // LAWYER → assigned cases
+      // LAWYER → OWN CREATED CASES
       if (role === "lawyer") {
         query.lawyer = userId;
       }
 
       const cases = await CaseModel.find(query)
-        .select("_id caseCode client lawyer")
-        .sort({ createdAt: -1 });
+
+        .select("_id caseCode")
+
+        .sort({
+          createdAt: -1,
+        });
 
       return res.status(200).json({
         status: "success",
@@ -231,7 +282,10 @@ class EventController {
 
     } catch (error) {
 
-      console.log(error);
+      console.log(
+        "GET CALENDAR CASES ERROR:",
+        error
+      );
 
       return res.status(500).json({
         status: "fail",

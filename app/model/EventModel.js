@@ -15,20 +15,6 @@ const EventSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Client
-    clientId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "users",
-      required: true,
-    },
-
-    // Lawyer
-    lawyerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "users",
-      required: true,
-    },
-
     // Schedule
     scheduleDateTime: {
       type: Date,
