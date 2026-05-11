@@ -8,7 +8,7 @@ async GetEvents(req, res) {
   try {
 
     const role = req.user.role;
-    const userId = req.user.user_id;
+    const userId = req.user._id;
 
     let query = {};
 
@@ -75,7 +75,7 @@ async CreateEvent(req, res) {
 
       priority,
 
-      createdBy: req.user.user_id,
+      createdBy: req.user._id,
     });
 
     return res.status(201).json({
@@ -167,7 +167,7 @@ async GetCalendarCases(req, res) {
     const CaseModel = require("../model/CaseModel");
 
     const role = req.user.role;
-    const userId = req.user.user_id;
+    const userId = req.user._id;
 
     let query = {};
 
