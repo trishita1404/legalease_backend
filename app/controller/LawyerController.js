@@ -18,7 +18,7 @@ class LawyerController {
     // ================= GET LAWYER CASES =================
     async GetLawyerCases(req, res) {    
         try {
-            const user_id = req.headers['user_id'];
+            const user_id = req.user.user_id;
 
             const cases = await CaseModel.find({ lawyer: user_id })
                 .populate('client', 'fullName email avatar')
@@ -33,7 +33,7 @@ class LawyerController {
     // ================= ADMIN ALL CASES =================
     async GetAllCases(req, res) {
         try {
-            const role = req.headers['role'];
+            const role = req.user.role;
 
             if (role !== "admin") {
                 return res.status(403).json({
@@ -63,7 +63,7 @@ class LawyerController {
     // ================= DASHBOARD =================
     async GetLawyerDashboard(req, res) {
         try {
-            const user_id = req.headers['user_id'];
+            const user_id = req.user.user_id;
 
             const cases = await CaseModel.find({ lawyer: user_id })
                 .populate('client', 'fullName')
@@ -121,7 +121,7 @@ class LawyerController {
     // ================= CREATE CASE =================
     async CreateCase(req, res) {
         try {
-            const lawyer_id = req.headers['user_id'];
+            const lawyer_id = req.user.user_id;
             const { caseCode, clientId, projectTitle, nextHearing, caseStatus, totalBilled } = req.body;
 
             if (!caseCode || !clientId || !projectTitle) {
@@ -349,7 +349,7 @@ await createNotification(
     // ================= GET CONSULTATION REQUESTS =================
 async GetConsultationRequests(req, res) {
     try {
-        const lawyer_id = req.headers['user_id'];
+        const lawyer_id = req.user.user_id;
 
         const requests = await ConsultationRequestModel.find({ lawyer: lawyer_id })
             .populate('client', 'fullName email')
