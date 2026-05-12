@@ -119,69 +119,115 @@ class LawyerController {
     }
 
     // ================= CREATE CASE =================
-    async CreateCase(req, res) {
-        try {
-            const lawyer_id = req.user.user_id;
-            const { caseCode, clientId, projectTitle, nextHearing, caseStatus, totalBilled } = req.body;
+async CreateCase(req, res) {
+    try {
 
-            if (!caseCode || !clientId || !projectTitle) {
-                return res.status(400).json({
-                    status: "fail",
-                    message: "Missing required fields"
-                });
-            }
+        console.log("CREATE CASE BODY:", req.body);
 
-            if (!mongoose.Types.ObjectId.isValid(clientId)) {
-                return res.status(400).json({
-                    status: "fail",
-                    message: "Invalid Client ID"
-                });
-            }
+        // ✅ FIXED
+        const lawyer_id = req.user._id;
 
-            const existing = await CaseModel.findOne({ caseCode });
-            if (existing) {
-                return res.status(400).json({
-                    status: "fail",
-                    message: "Case Code already exists"
-                });
-            }
+        const {
+            caseCode,
+            clientId,
+            projectTitle,
+            nextHearing,
+            caseStatus,
+            totalBilled
+        } = req.body;
 
-            const newCase = await CaseModel.create({
-                caseCode,
-                client: clientId,
-                lawyer: lawyer_id,
-                projectTitle,
-                nextHearing: nextHearing || "---",
-                caseStatus: caseStatus || "filed",
-                totalBilled: totalBilled || 0,
-
-                activities: [
-                    {
-                        text: `Case ${caseCode} created`,
-                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    }
-                ]
-            });
-            // 🔔 NOTIFY CLIENT
-await createNotification(
-    clientId,
-    "Case Created",
-    `A new case (${caseCode}) has been created for you.`,
-    "success"
-);
-
-            return res.status(201).json({
-                status: "success",
-                data: newCase
-            });
-
-        } catch (error) {
-            return res.status(500).json({
+        // ✅ VALIDATION
+        if (!caseCode || !clientId || !projectTitle) {
+            return res.status(400).json({
                 status: "fail",
-                message: error.toString()
+                message: "Missing required fields"
             });
         }
+
+        // ✅ OBJECT ID CHECK
+        if (!mongoose.Types.ObjectId.isValid(clientId)) {
+            return res.status(400).json({
+                status: "fail",
+                message: "Invalid Client ID"
+            });
+        }
+
+        // ✅ DUPLICATE CHECK
+        const existing = await CaseModel.findOne({
+            caseCode
+        });
+
+        if (existing) {
+            return res.status(400).json({
+                status: "fail",
+                message: "Case Code already exists"
+            });
+        }
+
+        // ✅ CREATE CASE
+        const newCase = await CaseModel.create({
+
+            caseCode,
+
+            client: clientId,
+
+            lawyer: lawyer_id,
+
+            projectTitle,
+
+            nextHearing: nextHearing || "---",
+
+            caseStatus: caseStatus || "Ongoing",
+
+            totalBilled: Number(totalBilled) || 0,
+
+            activities: [
+                {
+                    text: `Case ${caseCode} created`,
+                    time: new Date().toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    })
+                }
+            ]
+        });
+
+        // ✅ SAFE NOTIFICATION
+        try {
+
+            await createNotification(
+                clientId,
+                "Case Created",
+                `A new case (${caseCode}) has been created for you.`,
+                "success"
+            );
+
+        } catch (notifyError) {
+
+            console.log(
+                "NOTIFICATION ERROR:",
+                notifyError
+            );
+        }
+
+        return res.status(201).json({
+            status: "success",
+            data: newCase
+        });
+
+    } catch (error) {
+
+        console.log(
+            "CREATE CASE ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            status: "fail",
+            message: error.message
+        });
     }
+}
 
     // ================= UPDATE CASE =================
     async UpdateCase(req, res) {
