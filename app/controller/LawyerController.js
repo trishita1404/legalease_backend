@@ -18,7 +18,7 @@ class LawyerController {
     // ================= GET LAWYER CASES =================
     async GetLawyerCases(req, res) {    
         try {
-            const user_id = req.user.user_id;
+            const user_id = req.headers['user_id'];
 
             const cases = await CaseModel.find({ lawyer: user_id })
                 .populate('client', 'fullName email avatar')
@@ -33,7 +33,7 @@ class LawyerController {
     // ================= ADMIN ALL CASES =================
     async GetAllCases(req, res) {
         try {
-            const role = req.user.role;
+            const role = req.headers['role'];
 
             if (role !== "admin") {
                 return res.status(403).json({
@@ -63,7 +63,7 @@ class LawyerController {
     // ================= DASHBOARD =================
     async GetLawyerDashboard(req, res) {
         try {
-            const user_id = req.user.user_id;
+            const user_id = req.headers['user_id'];
 
             const cases = await CaseModel.find({ lawyer: user_id })
                 .populate('client', 'fullName')
@@ -119,115 +119,69 @@ class LawyerController {
     }
 
     // ================= CREATE CASE =================
-async CreateCase(req, res) {
-    try {
-
-        console.log("CREATE CASE BODY:", req.body);
-
-        // ✅ FIXED
-        const lawyer_id = req.user._id;
-
-        const {
-            caseCode,
-            clientId,
-            projectTitle,
-            nextHearing,
-            caseStatus,
-            totalBilled
-        } = req.body;
-
-        // ✅ VALIDATION
-        if (!caseCode || !clientId || !projectTitle) {
-            return res.status(400).json({
-                status: "fail",
-                message: "Missing required fields"
-            });
-        }
-
-        // ✅ OBJECT ID CHECK
-        if (!mongoose.Types.ObjectId.isValid(clientId)) {
-            return res.status(400).json({
-                status: "fail",
-                message: "Invalid Client ID"
-            });
-        }
-
-        // ✅ DUPLICATE CHECK
-        const existing = await CaseModel.findOne({
-            caseCode
-        });
-
-        if (existing) {
-            return res.status(400).json({
-                status: "fail",
-                message: "Case Code already exists"
-            });
-        }
-
-        // ✅ CREATE CASE
-        const newCase = await CaseModel.create({
-
-            caseCode,
-
-            client: clientId,
-
-            lawyer: lawyer_id,
-
-            projectTitle,
-
-            nextHearing: nextHearing || "---",
-
-            caseStatus: caseStatus || "Ongoing",
-
-            totalBilled: Number(totalBilled) || 0,
-
-            activities: [
-                {
-                    text: `Case ${caseCode} created`,
-                    time: new Date().toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    })
-                }
-            ]
-        });
-
-        // ✅ SAFE NOTIFICATION
+    async CreateCase(req, res) {
         try {
+            const lawyer_id = req.headers['user_id'];
+            const { caseCode, clientId, projectTitle, nextHearing, caseStatus, totalBilled } = req.body;
 
-            await createNotification(
-                clientId,
-                "Case Created",
-                `A new case (${caseCode}) has been created for you.`,
-                "success"
-            );
+            if (!caseCode || !clientId || !projectTitle) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Missing required fields"
+                });
+            }
 
-        } catch (notifyError) {
+            if (!mongoose.Types.ObjectId.isValid(clientId)) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Invalid Client ID"
+                });
+            }
 
-            console.log(
-                "NOTIFICATION ERROR:",
-                notifyError
-            );
+            const existing = await CaseModel.findOne({ caseCode });
+            if (existing) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Case Code already exists"
+                });
+            }
+
+            const newCase = await CaseModel.create({
+                caseCode,
+                client: clientId,
+                lawyer: lawyer_id,
+                projectTitle,
+                nextHearing: nextHearing || "---",
+                caseStatus: caseStatus || "filed",
+                totalBilled: totalBilled || 0,
+
+                activities: [
+                    {
+                        text: `Case ${caseCode} created`,
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }
+                ]
+            });
+            // 🔔 NOTIFY CLIENT
+await createNotification(
+    clientId,
+    "Case Created",
+    `A new case (${caseCode}) has been created for you.`,
+    "success"
+);
+
+            return res.status(201).json({
+                status: "success",
+                data: newCase
+            });
+
+        } catch (error) {
+            return res.status(500).json({
+                status: "fail",
+                message: error.toString()
+            });
         }
-
-        return res.status(201).json({
-            status: "success",
-            data: newCase
-        });
-
-    } catch (error) {
-
-        console.log(
-            "CREATE CASE ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            status: "fail",
-            message: error.message
-        });
     }
-}
 
     // ================= UPDATE CASE =================
     async UpdateCase(req, res) {
@@ -395,7 +349,7 @@ await createNotification(
     // ================= GET CONSULTATION REQUESTS =================
 async GetConsultationRequests(req, res) {
     try {
-        const lawyer_id = req.user.user_id;
+        const lawyer_id = req.headers['user_id'];
 
         const requests = await ConsultationRequestModel.find({ lawyer: lawyer_id })
             .populate('client', 'fullName email')
